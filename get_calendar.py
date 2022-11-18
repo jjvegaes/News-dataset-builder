@@ -15,7 +15,7 @@ ID_TELEGRAM = 'Your ID'
 #%%
 START_TIME = time.time()
 BASE_URL = f'https://es.investing.com/economic-calendar/'
-MONTHS = 100
+MONTHS = 24
 
 def scrap_even_days(events,chrome2):
     for fecha in range(len(fechas), 1, -1):
@@ -46,33 +46,33 @@ def scrap(events):
             print(f'Fecha desde {fechas[fecha]} hasta {fechas[fecha-1]}')        
             chrome2.get(BASE_URL)
             #print(f'Missing {fecha} of {len(fechas)}, eventos registrados: {len(events)}')
-            events = get_following(chrome2, fechas[fecha], fechas[fecha-1])
+            events += get_following(chrome2, fechas[fecha], fechas[fecha-1])
             #names = get_following(chrome2, fechas[fecha], fechas[fecha-1])
             #events = events + names
 
             #print(events[-1:])
             send_message('Recolección de eventos completada')
-            return events
+    return events # Move two places forward tab tab
         
     
 def send_message(message, chat_id = ID_TELEGRAM):
-    requests.post('https://api.telegram.org/Your_bot:YourAPI/sendMessage',
+    requests.post('https://api.telegram.org/YourBot:YourAPI/sendMessage',
             data={'chat_id': chat_id, 'text': message})   
 
 
 def start_driver():
-    '''Starts the driver when using parallel programming'''
+
     options = Options()
     options.add_argument("--disable-notification")
     options.add_argument("--disable-infobars")
     options.add_argument("--mute-audio")
-    #options.add_argument("--disable-gpu")
+    options.add_argument("--disable-gpu")
     options.add_argument('--no-sandbox')
     options.add_argument('--window-size=1200,1000')
     options.add_argument('--disable-dev-shm-usage')
     #options.add_argument("user-data-dir=.") 
     #options.add_argument('--lang=en-US')
-    #options.add_argument("headless")
+    options.add_argument("headless")
 
     driver = webdriver.Chrome(options=options)
     return driver
@@ -84,8 +84,6 @@ def get_following(chrome, fini, ffin):
     ffin = datetime.datetime.strftime(ffin, '%d/%m/%Y')
     print(f'Getting economic calendar from {BASE_URL}')
 
-    
-    
     cal = chrome.find_element(By.ID, 'datePickerToggleBtn')
     cal.click()
     time.sleep(2)
@@ -101,30 +99,27 @@ def get_following(chrome, fini, ffin):
     
     time.sleep(2)
     chrome.find_element(By.XPATH, '//*[@id="filterStateAnchor"]').click()
-    time.sleep(3)
+    time.sleep(1) # from 3 to 1
     
-    chrome.find_element(By.XPATH, '//*[@id="importance2"]').click()
+    #chrome.find_element(By.XPATH, '//*[@id="importance2"]').click()
     chrome.find_element(By.XPATH, '//*[@id="importance3"]').click()
-    time.sleep(1)
+    #time.sleep(1) # From uncomment to comment
     chrome.find_element(By.XPATH, '//*[@id="ecSubmitButton"]').click()
     time.sleep(1)
     
     economic_calendar_loading = chrome.find_element(By.ID, 'economicCalendarData')
 
-    #scroll_bar = chrome.find_element(By.XPATH, "/html/body/div[6]/div/div/div/div[3]") 
-    #last_ht, ht = 0, 1
-    #start_time = datetime.datetime.now()
-    #scrapping_time = start_time + timedelta(seconds=38)
-    """while datetime.datetime.now() < scrapping_time:
-    time.sleep(0.5)
-    #ht = chrome.execute_script("window.scrollTo(0,document.body.scrollHeight)")
-    #ht = chrome.execute_script(""" 
-    #arguments[0].scrollTo(0, arguments[0].scrollHeight); 
-    #return arguments[0].scrollHeight; """, scroll_bar)
-    #ht = chrome.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    #ht = chrome.execute_script("arguments[0].scrollTo(0, arguments[0].scrollHeight);", economic_calendar_loading)
-    #ht = chrome.execute_script("arguments[0].scrollIntoView(false);", economic_calendar_loading)
+    last_ht, ht = 0, 1
+    start_time = datetime.datetime.now()
+    scrapping_time = start_time + timedelta(seconds=38)
+    while datetime.datetime.now() < scrapping_time:
+        time.sleep(0.5)
+        '''ht = chrome.execute_script(""" 
+        arguments[0].scrollTo(0, arguments[0].scrollHeight); 
+        return arguments[0].scrollHeight; """, scroll_bar)'''
+        ht = chrome.execute_script("arguments[0].scrollIntoView(false);", economic_calendar_loading)
     cleaned_events = []
+    
     #events = economic_calendar_loading.find_elements(By.TAG_NAME, 'tr')
     dates = economic_calendar_loading.find_elements(By.CLASS_NAME, 'theDay')
     events = economic_calendar_loading.find_elements(By.CLASS_NAME, 'js-event-item')
@@ -134,11 +129,7 @@ def get_following(chrome, fini, ffin):
     
     for evento in events:
         columns = evento.find_elements(By.TAG_NAME, 'td')
-        #ultima_hora = dt.datetime.strptime('00:00', '%H:%M')
-        #print(evento)
-        #column_name = evento.find_element_by_tag_name('th').text
         hora = columns[0].text
-        print(f'Ultima hora: {ultima_hora}, hora: {hora}')
         if hora < ultima_hora:
             i += 1
         ultima_hora = hora
@@ -159,11 +150,11 @@ def get_following(chrome, fini, ffin):
 
 fechas = []
 events = []
-now = datetime.date.today() + timedelta(days=30)
+now = datetime.date.today()+ timedelta(days=30)
 month = now
 fechas.append(month)
 
-for i in range(3):
+for i in range(MONTHS):
     month = month - timedelta(days=30)
     fechas.append(month)
 
@@ -172,13 +163,13 @@ options = Options()
 options.add_argument("--disable-notification")
 options.add_argument("--disable-infobars")
 options.add_argument("--mute-audio")
-#options.add_argument("--disable-gpu")
-#options.add_argument('--no-sandbox')
+options.add_argument("--disable-gpu")
+options.add_argument('--no-sandbox')
 options.add_argument('--window-size=1200,1000')
 options.add_argument('--disable-dev-shm-usage')
-#options.add_argument("user-data-dir=.") 
-#options.add_argument('--lang=en-US')
-#options.add_argument("headless")
+options.add_argument("user-data-dir=.") 
+options.add_argument('--lang=en-US')
+options.add_argument("headless")
 
 #driver2 = start_driver()
 #thread_2 = Thread(target=scrap_odd_days, args=(events,driver2))
@@ -193,11 +184,4 @@ print(f"Running time: {int((time.time() - START_TIME)/60)} minutes and {(time.ti
 # %%
 import pandas as pd
 events = pd.DataFrame(events, columns=['Fecha','Hora', 'Divisa', 'Importancia', 'Evento', 'Actual', 'Prevision', 'Anterior'])
-
-# %%
-events
-# %%
-events.to_csv('events.csv')
-# %%
-algo = dt.datetime.strptime('00:00', '%H:%M')
-# %%
+events.to_csv('events.csv', index=False)
